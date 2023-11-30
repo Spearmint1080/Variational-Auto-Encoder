@@ -91,6 +91,14 @@ np.random.shuffle(dataset)
 # current training method is unstable if batch size is not a fraction of the length of training data
 training = dataset[:5900].astype(np.int32)
 test = dataset[5900:6900].astype(np.int32)
+noise = np.random.normal(0,1,(len(test),len(test[0])))
+test1 = test + noise
+
+print("Training data",training)
+print("Shape of training data",training.shape)
+print("Testing data",training)
+print("Shape of testing data",test.shape)
+print("Output matrix",test1)
 
 
 batch_size = 25
