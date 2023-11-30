@@ -71,6 +71,23 @@ class CustomVariationalLayer(Layer):
         self.add_loss(loss, inputs=inputs)
         return K.ones_like(x)
 
+    
+    def generate_indices_from_encoded_space(encoded_vector, generator):
+        reconstructed_equation = generator.predict(encoded_vector, batch_size=1)
+        reconstruct_indices = np.apply_along_axis(np.argmax, 1, reconstructed_equation[0])
+        return np.max(np.apply_along_axis(np.max, 1, reconstruct_indices[0]))
+    
+    
+    def check_validation_equation(index_number, data, encoder, generator, tokenizer):
+        encoded_equation = encoder.predict(data[index_number : index_number + 2, :])
+        smiles_indices = generate_indices_from_encoded_space(encoded_equation, generator)
+        smiles_equation = list(np.vectorize(tokenizer.index_word.get)(smiles_indices))
+        print(f"The reconstructed equation is {''.join(smiles_equation)}")
+        original_equation = list(np.vectorize(tokenizer.index_word.get)(data[index_number]))
+        print(f"The original equation is {''.join(original_equation)}")
+    
+
+
 os.environ["KERAS_BACKEND"] = "tensorflow"
 kerasBKED = os.environ["KERAS_BACKEND"]
 print(kerasBKED)
@@ -162,7 +179,6 @@ vae.fit(
     callbacks=[checkpointer]
 )
 
-print(K.eval(vae.optimizer.learning_rate))
 K.set_value(vae.optimizer.learning_rate, learning_rate)
 
 
@@ -182,43 +198,3 @@ _x_decoded_mean = Activation("softmax")(_x_decoded_mean)
 generator = Model(decoder_input, _x_decoded_mean)
 generator.save(path.joinpath("agoras_generator.h5"))
 
-
-def generate_indices_from_encoded_space(encoded_vector, generator):
-    reconstructed_equation = generator.predict(encoded_vector, batch_size=1)
-    reconstruct_indices = np.apply_along_axis(np.argmax, 1, reconstructed_equation[0])
-    return np.max(np.apply_along_axis(np.max, 1, reconstruct_indices[0]))
-
-
-def check_validation_equation(index_number, data, encoder, generator, tokenizer):
-    encoded_equation = encoder.predict(data[index_number : index_number + 2, :])
-    smiles_indices = generate_indices_from_encoded_space(encoded_equation, generator)
-    smiles_equation = list(np.vectorize(tokenizer.index_word.get)(smiles_indices))
-    print(f"The reconstructed equation is {''.join(smiles_equation)}")
-    original_equation = list(np.vectorize(tokenizer.index_word.get)(data[index_number]))
-    print(f"The original equation is {''.join(original_equation)}")
-
-
-check_validation_equation(200, test, encoder, generator, tokenizer)
-
-
-# ====================== Example ====================================#
-equation1 = ["C=O ~ [OH-] > [CH]=O ~ O"]
-equation2 = ["C.CCCO ~ O=O > CC(=O)C(C)=O ~ [OH-]"]
-
-homology = calculate_equations_homology(
-    equation1, equation2, 5, encoder, pad_equation=True
-)
-new_equations(homology, generator, latent_dimension, max_length_of_equation, tokenizer)
-
-# A list of common errors to help eliminate bad equations from the generated set.
-
-new_equations = generate_equations(
-    dataset,
-    500000,
-    5,
-    generator,
-    encoder,
-    latent_dimension,
-    max_length_of_equation,
-    tokenizer,
-)
